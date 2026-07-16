@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Any, List
 from urllib.parse import urljoin, urlparse
 
@@ -14,9 +15,10 @@ class VnExpressScraper(BaseScraper):
     def parse_article(self, url: str, page: Page) -> Dict[str, Any]:
         soup = self.load_page(page, url)
 
-        if "/kinh-doanh" in url and not url.endswith(".html"):
-            # Trang chuyên mục: trích xuất các bài báo bên trong
-            anchors = soup.select('a[data-medium][href$=".html"]')
+        # Nếu URL không phải trang bài (.html/.htm) coi là trang chuyên mục / list page
+        if not url.lower().endswith(".html") and not url.lower().endswith(".htm"):
+            # Lấy tất cả anchor dẫn tới .html và lọc thành các liên kết bài báo thực sự
+            anchors = soup.select('a[href$=".html"], a[href$=".htm"]')
             urls: List[str] = []
             seen: set = set()
             for a in anchors:
@@ -25,14 +27,18 @@ class VnExpressScraper(BaseScraper):
                     continue
                 if href.startswith("#") or href.lower().startswith("javascript:"):
                     continue
-                full_url = urljoin(url, href.split("#")[0])
+                full_url = urljoin(url, href.split("#")[0].strip())
                 parsed = urlparse(full_url)
                 if parsed.netloc and "vnexpress.net" not in parsed.netloc:
                     continue
-                if full_url in seen:
+                # Chỉ chọn các URL có dạng bài báo của VnExpress: kết thúc bằng -<digits>.html
+                if not re.search(r"-\d+\.html$", full_url):
                     continue
-                seen.add(full_url)
-                urls.append(full_url)
+                full_url_norm = full_url
+                if full_url_norm in seen:
+                    continue
+                seen.add(full_url_norm)
+                urls.append(full_url_norm)
 
             logger.info(f"Phát hiện {len(urls)} liên kết bài viết từ trang chuyên mục {url}")
             return {
