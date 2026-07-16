@@ -15,7 +15,8 @@ class VietnamNetScraper(BaseScraper):
     def parse_article(self, url: str, page: Page) -> Dict[str, Any]:
         soup = self.load_page(page, url)
 
-        if "/kinh-doanh" in url and not url.endswith(".htm") and not url.endswith(".html"):
+        # Nếu URL không phải trang bài (.html/.htm) coi là trang chuyên mục / list page
+        if not url.lower().endswith(".htm") and not url.lower().endswith(".html"):
             anchors = soup.select('a[href$=".html"], a[href$=".htm"]')
             urls = []
             seen = set()
@@ -41,6 +42,7 @@ class VietnamNetScraper(BaseScraper):
                 if re.search(r'-page\d+\.html$', full_url_lower):
                     logger.debug(f"Bỏ qua URL phân trang không phải bài viết: {full_url}")
                     continue
+                # Giữ lại các URL có dạng bài viết (ví dụ kết thúc bằng -<digits>.html hoặc -sk...)
                 if not re.search(r'-(?:sk[0-9a-z]+|\d+)\.html$', full_url_lower):
                     logger.debug(f"Bỏ qua URL không phải bài viết: {full_url}")
                     continue
