@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from loguru import logger
 from base_scraper import BaseScraper, ScraperConfig
 from parsers.cafef import CafeFScraper
 from parsers.reuters import ReutersScraper
@@ -85,7 +86,7 @@ def main() -> None:
         urls = load_urls_from_file(args.urls_file)
 
     if not urls:
-        raise ValueError("Không có URL nào để cào. Thêm URL vào DEFAULT_URLS hoặc dùng --urls-file.")
+        raise ValueError("Khong co URL nao de cao. Them URL vao DEFAULT_URLS hoac dung --urls-file.")
 
     config = ScraperConfig(
         debugger_address=args.debugger_address,
@@ -97,15 +98,44 @@ def main() -> None:
         force_recrawl=args.force_recrawl,
     )
 
-    for url in urls:
+    print(f"\n[START] Bat dau cao {len(urls)} URL...")
+    print(f"Output dir: {config.output_dir}")
+    success_count = 0
+    failed_count = 0
+
+    for idx, url in enumerate(urls, 1):
+        print(f"\n[{idx}/{len(urls)}] URL: {url}")
+        
         scraper_cls = find_scraper(url)
         if not scraper_cls:
-            print(f"Chưa có parser cho URL: {url}")
+            print(f"  ERROR: Khong co parser!")
+            failed_count += 1
             continue
 
-        print(f"[INFO] Sử dụng parser {scraper_cls.__name__} cho {url}")
-        with scraper_cls(config) as scraper:
-            scraper.run(url)
+        print(f"  Parser: {scraper_cls.__name__}")
+        try:
+            with scraper_cls(config) as scraper:
+                result = scraper.run(url)
+                if result:
+                    success_count += 1
+                    print(f"  SUCCESS: {result}")
+                else:
+                    failed_count += 1
+                    print(f"  WARNING: Khong crawl duoc")
+        except Exception as e:
+            failed_count += 1
+            print(f"  ERROR: {str(e)[:100]}")
+            import traceback
+            traceback.print_exc()
+    
+    # Show summary
+    print(f"\n{'='*60}")
+    print(f"SUMMARY:")
+    print(f"  Total URLs: {len(urls)}")
+    print(f"  Success: {success_count}")
+    print(f"  Failed: {failed_count}")
+    print(f"  Output dir: {config.output_dir}")
+    print(f"{'='*60}\n")
 
 
 if __name__ == "__main__":

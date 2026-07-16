@@ -490,10 +490,18 @@ class BaseScraper(ABC):
         """Parser cụ thể mỗi site phải implement."""
         raise NotImplementedError("Phải cài đặt parse_article ở scraper con")
 
-    def run(self, url: str) -> Optional[Path]:
-        """Chạy parser với một URL và lưu file Markdown."""
+    def run(self, url: str, depth: int = 0, max_depth: int = 2) -> Optional[Path]:
+        """Chạy parser với một URL và lưu file Markdown.
+        
+        Hỗ trợ nested list pages với giới hạn độ sâu.
+        """
         if not self.browser:
             raise RuntimeError("Browser chưa được khởi tạo. Hãy sử dụng context manager hoặc gọi setup_browser().")
+
+        # Ngăn chặn vòng lặp vô hạn với nested list pages
+        if depth > max_depth:
+            logger.warning(f"Đạt giới hạn độ sâu nested list pages ({max_depth}), bỏ qua: {url}")
+            return None
 
         context = self.browser.new_context()
         page = context.new_page()
@@ -502,7 +510,8 @@ class BaseScraper(ABC):
             if isinstance(result, dict) and "list_urls" in result:
                 saved_paths = []
                 for item_url in result["list_urls"]:
-                    saved = self.run_article_page(item_url, context)
+                    # Xử lý nested list pages bằng cách gọi run_article_page_or_list
+                    saved = self._process_url(item_url, context, depth + 1, max_depth)
                     if saved:
                         saved_paths.append(saved)
                 if saved_paths:
@@ -519,6 +528,37 @@ class BaseScraper(ABC):
         finally:
             page.close()
             context.close()
+
+    def _process_url(self, url: str, context, depth: int = 0, max_depth: int = 2) -> Optional[Path]:
+        """Xử lý một URL - có thể là article hoặc list page."""
+        page = context.new_page()
+        try:
+            result = self.parse_article(url, page)
+            if isinstance(result, dict) and "list_urls" in result:
+                # Đây là list page - xử lý đệ quy
+                if depth > max_depth:
+                    logger.warning(f"Đạt giới hạn độ sâu ({max_depth}), bỏ qua nested list: {url}")
+                    return None
+                    
+                saved_paths = []
+                for item_url in result["list_urls"]:
+                    saved = self._process_url(item_url, context, depth + 1, max_depth)
+                    if saved:
+                        saved_paths.append(saved)
+                
+                if saved_paths:
+                    logger.info(f"Lưu xong {len(saved_paths)} bài từ nested list: {url}")
+                    return saved_paths[0]
+                return None
+            else:
+                # Đây là article page - xử lý bình thường
+                page.close()
+                return self.run_article_page(url, context)
+        except Exception as exc:
+            logger.error(f"Lỗi khi xử lý URL {url}: {exc}")
+            return None
+        finally:
+            page.close()
 
     @classmethod
     def supports_url(cls, url: str) -> bool:

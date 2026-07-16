@@ -1,6 +1,4 @@
-https://vnexpress.net/khoa-hoc-cong-nghe
-# CafeF articles
+# CafeF test URLs
 https://cafef.vn/tu-ngay-mai-17-7-dich-vu-hang-trieu-nguoi-dang-dung-thay-doi-cach-tinh-gia-ve-188260716214944455.chn
 https://cafef.vn/jordan-danh-chan-hang-loat-ten-lua-iran-188260716211157095.chn
-# CafeF list pages
 https://cafef.vn/doc-nhanh.chn
