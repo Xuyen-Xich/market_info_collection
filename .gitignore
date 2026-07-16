@@ -1,0 +1,40 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.env/
+
+# Output and local build artifacts
+output/
+*.db
+*.sqlite3
+
+# Logs and reports
+logs/
+reports/
+*.log
+
+# Test artifacts
+.pytest_cache/
+coverage/
+htmlcov/
+*.cover
+*.coverage
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*~
+
+# System files
+.DS_Store
+Thumbs.db
