@@ -8,3 +8,7 @@ pydantic
 python-dateutil
 markdownify
 cloakbrowser
+pytest
+ruff
+black
+mypy

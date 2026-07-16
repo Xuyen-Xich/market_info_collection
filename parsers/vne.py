@@ -9,6 +9,7 @@ from base_scraper import BaseScraper
 
 class VnExpressScraper(BaseScraper):
     SOURCE_NAME = "VnExpress"
+    OUTPUT_SUBDIR = "vne"
 
     def parse_article(self, url: str, page: Page) -> Dict[str, Any]:
         soup = self.load_page(page, url)

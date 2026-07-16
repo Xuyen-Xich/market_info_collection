@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 import sqlite3
 from datetime import timezone, timedelta
 
@@ -42,6 +42,7 @@ class BaseScraper(ABC):
     """
 
     SOURCE_NAME = "Generic"
+    OUTPUT_SUBDIR: Optional[str] = None
 
     def __init__(self, config: Optional[ScraperConfig] = None):
         self.config = config or ScraperConfig()
@@ -51,6 +52,16 @@ class BaseScraper(ABC):
         self.browser: Optional[Browser] = None
         self._db_conn: Optional[sqlite3.Connection] = None
         self._init_db()
+
+    def get_output_subdir(self) -> str:
+        if self.OUTPUT_SUBDIR:
+            return self.OUTPUT_SUBDIR
+        return self.slugify(self.SOURCE_NAME)
+
+    def get_output_dir(self) -> Path:
+        output_dir = self.output_dir / self.get_output_subdir()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        return output_dir
 
     def __enter__(self):
         self.setup_browser()
@@ -181,7 +192,8 @@ class BaseScraper(ABC):
     ) -> Path:
         """Lưu bài viết dưới dạng file Markdown phù hợp Obsidian."""
         file_name = f"{date.strftime('%Y-%m-%d')}-{self.slugify(title)}.md"
-        file_path = Path(existing_path) if existing_path else (self.output_dir / file_name)
+        base_dir = self.get_output_dir()
+        file_path = Path(existing_path) if existing_path else (base_dir / file_name)
         tags = tags or ["du_lieu_cao", "tin_tuc"]
 
         frontmatter = [
@@ -348,7 +360,7 @@ class BaseScraper(ABC):
             # Check existing saved path and normalize filename before skipping
             existing = self._get_saved_path(url)
             expected_name = f"{date.strftime('%Y-%m-%d')}-{self.slugify(title)}.md"
-            expected_path = self.output_dir / expected_name
+            expected_path = self.get_output_dir() / expected_name
 
             if existing:
                 existing_path = Path(existing)
@@ -367,7 +379,7 @@ class BaseScraper(ABC):
             # Remove other files with same slug (different date prefixes) to avoid duplicates
             try:
                 slug = self.slugify(title)
-                matches = list(self.output_dir.glob(f"*-{slug}.md"))
+                matches = list(self.get_output_dir().glob(f"*-{slug}.md"))
                 if len(matches) > 1:
                     # decide canonical to keep: expected_path if exists, else first existing
                     keep = expected_path if expected_path.exists() else (Path(matches[0]) if matches else None)

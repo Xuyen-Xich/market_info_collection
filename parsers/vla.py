@@ -7,6 +7,7 @@ from base_scraper import BaseScraper
 
 class VLAScraper(BaseScraper):
     SOURCE_NAME = "VLA"
+    OUTPUT_SUBDIR = "VLA"
 
     def parse_article(self, url: str, page: Page) -> Dict[str, Any]:
         soup = self.load_page(page, url)
