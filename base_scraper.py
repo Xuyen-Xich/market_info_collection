@@ -319,6 +319,78 @@ class BaseScraper(ABC):
                     return text
         return None
 
+    def normalize_tag(self, tag: str) -> str:
+        if not tag:
+            return ""
+        normalized = self.slugify(self.clean_text(tag))
+        return normalized.replace("-", "_")
+
+    def extract_meta_keywords(self, soup: BeautifulSoup) -> List[str]:
+        meta = soup.select_one("meta[name='keywords']")
+        if not meta or not meta.get("content"):
+            return []
+        keywords = [item.strip() for item in meta["content"].split(",") if item.strip()]
+        tags: List[str] = []
+        seen: set = set()
+        for keyword in keywords:
+            normalized = self.normalize_tag(keyword)
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                tags.append(normalized)
+        return tags
+
+    def extract_meta_section(self, soup: BeautifulSoup) -> List[str]:
+        selectors = ["meta[property='article:section']", "meta[name='article:section']"]
+        for selector in selectors:
+            element = soup.select_one(selector)
+            if element and element.get("content"):
+                normalized = self.normalize_tag(element.get("content"))
+                if normalized:
+                    return [normalized]
+        return []
+
+    def extract_breadcrumb_tags(self, soup: BeautifulSoup) -> List[str]:
+        selectors = [
+            "nav.breadcrumb a",
+            "div.breadcrumb a",
+            "div.bread-crumb a",
+            "ul.breadcrumb a",
+            "li.breadcrumb a",
+            "nav.breadcrumb li a",
+        ]
+        tags: List[str] = []
+        seen: set = set()
+        stop_words = {"home", "trang chủ", "vietnamnet news", "vnexpress", "vnexpress.net"}
+        for selector in selectors:
+            for anchor in soup.select(selector):
+                text = self.clean_text(anchor.get_text(" ", strip=True))
+                if not text:
+                    continue
+                if text.lower() in stop_words:
+                    continue
+                normalized = self.normalize_tag(text)
+                if normalized and normalized not in seen:
+                    seen.add(normalized)
+                    tags.append(normalized)
+        return tags
+
+    def extract_page_tags(self, soup: BeautifulSoup, fallback: Optional[List[str]] = None, max_tags: int = 12) -> List[str]:
+        tags: List[str] = []
+        seen: set = set()
+        for candidate in self.extract_meta_section(soup) + self.extract_breadcrumb_tags(soup) + self.extract_meta_keywords(soup):
+            if candidate and candidate not in seen:
+                seen.add(candidate)
+                tags.append(candidate)
+                if len(tags) >= max_tags:
+                    break
+        if not tags and fallback:
+            for tag in fallback:
+                normalized = self.normalize_tag(tag)
+                if normalized and normalized not in seen:
+                    seen.add(normalized)
+                    tags.append(normalized)
+        return tags
+
     def load_page(self, page: Page, url: str) -> BeautifulSoup:
         """Mở URL và trả về BeautifulSoup của nội dung đã render."""
         logger.info(f"Mở trang: {url}")

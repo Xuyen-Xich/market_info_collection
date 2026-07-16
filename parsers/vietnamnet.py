@@ -76,5 +76,8 @@ class VietnamNetScraper(BaseScraper):
             "source": self.SOURCE_NAME,
             "url": url,
             "content": self.clean_html(content_block),
-            "tags": ["dữ_liệu_cào", "vietnamnet", "kinh_tế_đời_sống"],
+            "tags": self.extract_page_tags(
+                soup,
+                fallback=["dữ_liệu_cào", "vietnamnet", "kinh_tế_đời_sống"],
+            ),
         }
